@@ -3218,14 +3218,14 @@
         await saveHolidaysToCloud();
         document.getElementById('newHolidayName').value = '';
         renderHolidayList();
-        alert(`✅ 已成功設定放假：${date} 【${name}】並同步至全角雲端！`);
+        alert(`✅ 已成功設定放假：${date} 【${name}】並同步至雲端！`);
     };
 
     function renderHolidayList() {
         const div = document.getElementById('holidayListDiv');
         if (!div) return;
         if (window.state.holidays.length === 0) {
-            div.innerHTML = '<p style="color:#888; font-size:13.5px;">目前無設定任何放假日期。';
+            div.innerHTML = '<p style="color:#888; font-size:13.5px;">目前無設定任何放假日期。</p>';
             return;
         }
         let html = '<table><tr><th>放假日期</th><th>放假事由</th><th>操作</th></tr>';
