@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>智慧教務管理、多科修課點名與學生資料總庫</title>
+    <!-- 引入 Google 官方 API 與登入套件 (用於雲端試算表分頁) -->
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
     <style>
         :root {
             --primary: #6b21a8;
@@ -59,11 +62,13 @@
                 padding: 6px 2px env(safe-area-inset-bottom, 6px);
                 margin: 0;
                 gap: 2px;
+                overflow-x: auto;
             }
             .tab-btn {
                 flex: 1;
+                min-width: 60px;
                 height: 52px;
-                font-size: 10px;
+                font-size: 9.5px;
                 padding: 4px 1px;
                 border-radius: 8px;
                 background: transparent;
@@ -104,9 +109,11 @@
                 padding: 10px;
                 border-radius: 12px;
                 box-shadow: 0 3px 12px rgba(107, 33, 168, 0.06);
+                flex-wrap: wrap;
             }
             .tab-btn {
                 flex: 1;
+                min-width: 130px;
                 padding: 13px 12px;
                 border: 2px solid #e9d5ff;
                 border-radius: 10px;
@@ -205,23 +212,9 @@
         .btn:hover { opacity: 0.9; }
 
         .text-download-btn {
-            background: none;
-            border: none;
-            color: #6b21a8;
-            font-size: 13.5px;
-            font-weight: bold;
-            cursor: pointer;
-            padding: 8px 4px;
-            text-decoration: underline;
-            text-underline-offset: 4px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: color 0.2s ease;
+            background: none; border: none; color: #6b21a8; font-size: 13.5px; font-weight: bold; cursor: pointer; padding: 8px 4px; text-decoration: underline; text-underline-offset: 4px; display: inline-flex; align-items: center; gap: 6px; transition: color 0.2s ease;
         }
-        .text-download-btn:hover {
-            color: var(--accent);
-        }
+        .text-download-btn:hover { color: var(--accent); }
 
         input[type="text"], input[type="date"], input[type="number"], select, textarea {
             width: 100%; padding: 10px 12px; margin-top: 4px; margin-bottom: 10px;
@@ -229,15 +222,9 @@
         }
 
         .select-styled {
-            font-weight: 600;
-            color: var(--primary);
-            border: 2px solid #d8b4fe;
-            cursor: pointer;
+            font-weight: 600; color: var(--primary); border: 2px solid #d8b4fe; cursor: pointer;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b21a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            appearance: none;
-            padding-right: 36px !important;
+            background-repeat: no-repeat; background-position: right 12px center; appearance: none; padding-right: 36px !important;
         }
         .select-styled:focus { border-color: var(--accent); outline: none; }
 
@@ -251,132 +238,75 @@
         tr.gender-male:hover { background-color: #f3e8ff; }
         tr.gender-female:hover { background-color: #fae8ff; }
 
-        .action-btn-group {
-            display: inline-flex;
-            gap: 4px;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-        }
-        .action-btn {
-            padding: 5px 8px;
-            font-size: 11.5px;
-            border-radius: 4px;
-            font-weight: bold;
-            line-height: 1.2;
-        }
+        .action-btn-group { display: inline-flex; gap: 4px; align-items: center; justify-content: center; white-space: nowrap; }
+        .action-btn { padding: 5px 8px; font-size: 11.5px; border-radius: 4px; font-weight: bold; line-height: 1.2; }
 
         #studentTableSection table th { font-size: 13.5px; padding: 10px 5px; }
         #studentTableSection table td { font-size: 13px; padding: 8px 5px; }
 
         .student-master-card {
-            background: #ffffff;
-            border: 1.5px solid #d8b4fe;
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 6px rgba(107, 33, 168, 0.04);
+            background: #ffffff; border: 1.5px solid #d8b4fe; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(107, 33, 168, 0.04);
         }
         .student-master-card.gender-male { background-color: #faf5ff; border-color: #e9d5ff; }
         .student-master-card.gender-female { background-color: #fdf4ff; border-color: #f5d0fe; }
 
         .student-master-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(107, 33, 168, 0.08);
-            padding-bottom: 8px;
-            margin-bottom: 8px;
+            display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(107, 33, 168, 0.08); padding-bottom: 8px; margin-bottom: 8px;
         }
-        .student-master-card-body {
-            font-size: 13.5px;
-            color: #4c1d95;
-            line-height: 1.5;
-        }
+        .student-master-card-body { font-size: 13.5px; color: #4c1d95; line-height: 1.5; }
         .student-master-card-body div { margin-bottom: 4px; }
         .student-master-card-footer {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
-            margin-top: 10px;
-            border-top: 1px dashed rgba(107, 33, 168, 0.15);
-            padding-top: 8px;
-            flex-wrap: wrap;
+            display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; border-top: 1px dashed rgba(107, 33, 168, 0.15); padding-top: 8px; flex-wrap: wrap;
         }
 
         .paper-sheet {
-            background: #ffffff; padding: 20px 15px; border-radius: 3px;
-            box-shadow: 0 4px 15px rgba(107, 33, 168, 0.12), 0 0 0 1px #d8b4fe;
-            margin-top: 20px; position: relative; overflow-x: auto;
+            background: #ffffff; padding: 20px 15px; border-radius: 3px; box-shadow: 0 4px 15px rgba(107, 33, 168, 0.12), 0 0 0 1px #d8b4fe; margin-top: 20px; position: relative; overflow-x: auto;
         }
         @media(min-width: 768px) { .paper-sheet { padding: 30px 25px; } }
-        .paper-sheet::before {
-            content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary);
-        }
+        .paper-sheet::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary); }
         .paper-sheet table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; min-width: 600px; }
         .paper-sheet th, .paper-sheet td { border: 1px solid #333 !important; padding: 7px 5px; }
         .paper-sheet th { background-color: #f3e8ff; }
 
         .modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(76, 29, 149, 0.4); z-index: 1000; justify-content: center; align-items: center; padding: 10px;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(76, 29, 149, 0.4); z-index: 1000; justify-content: center; align-items: center; padding: 10px;
         }
         .modal-box {
-            background: white; width: 100%; max-width: 800px; padding: 20px;
-            border-radius: 10px; box-shadow: 0 5px 20px rgba(107, 33, 168, 0.3); max-height: 90vh; overflow-y: auto;
+            background: white; width: 100%; max-width: 800px; padding: 20px; border-radius: 10px; box-shadow: 0 5px 20px rgba(107, 33, 168, 0.3); max-height: 90vh; overflow-y: auto;
         }
 
         .all-classes-manage-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 10px;
         }
         .class-manage-card {
-            background: white; border: 2px solid #d8b4fe; border-radius: 8px; padding: 14px;
-            display: flex; flex-direction: column; justify-content: space-between; transition: 0.2s;
+            background: white; border: 2px solid #d8b4fe; border-radius: 8px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; transition: 0.2s;
         }
 
         .dynamic-course-row {
-            display: flex;
-            flex-direction: column;
-            background: #fff;
-            border: 1.5px solid #d8b4fe;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 10px;
+            display: flex; flex-direction: column; background: #fff; border: 1.5px solid #d8b4fe; border-radius: 8px; padding: 10px; margin-bottom: 10px;
         }
         .course-tag {
-            display: inline-block; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px;
-            background: #f3e8ff; color: #7c3aed; border: 1px solid #e9d5ff; margin: 2px;
+            display: inline-block; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: #f3e8ff; color: #7c3aed; border: 1px solid #e9d5ff; margin: 2px;
         }
         .schedule-badge {
-            display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 5px; border-radius: 4px;
-            background: #fef3c7; color: #92400e; border: 1px solid #fde68a; margin-left: 4px;
+            display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; margin-left: 4px;
         }
         .phone-plain-cell { font-size: 12.5px; line-height: 1.4; text-align: center; color: #3b0764; }
 
-        .timetable-week-grid {
-            display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 15px;
-        }
-        @media(min-width: 900px) {
-            .timetable-week-grid { grid-template-columns: repeat(7, 1fr); gap: 10px; }
-        }
+        .timetable-week-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 15px; }
+        @media(min-width: 900px) { .timetable-week-grid { grid-template-columns: repeat(7, 1fr); gap: 10px; } }
         .timetable-day-col {
-            background: #faf5ff; border: 1.5px solid #d8b4fe; border-radius: 8px; padding: 10px;
-            display: flex; flex-direction: column; min-height: 200px;
+            background: #faf5ff; border: 1.5px solid #d8b4fe; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; min-height: 200px;
         }
         @media(min-width: 900px) { .timetable-day-col { min-height: 280px; } }
         .timetable-day-header {
-            font-size: 14px; font-weight: bold; text-align: center; padding-bottom: 6px;
-            border-bottom: 2px solid #7c3aed; margin-bottom: 10px; color: var(--primary); background: #f3e8ff;
-            padding-top: 4px; border-radius: 4px;
+            font-size: 14px; font-weight: bold; text-align: center; padding-bottom: 6px; border-bottom: 2px solid #7c3aed; margin-bottom: 10px; color: var(--primary); background: #f3e8ff; padding-top: 4px; border-radius: 4px;
         }
         .timetable-item {
-            background: white; border-radius: 6px; border: 1.5px solid #d8b4fe; border-left: 4px solid #8b5cf6;
-            padding: 9px 8px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(107, 33, 168, 0.05); font-size: 12px;
+            background: white; border-radius: 6px; border: 1.5px solid #d8b4fe; border-left: 4px solid #8b5cf6; padding: 9px 8px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(107, 33, 168, 0.05); font-size: 12px;
         }
         .timetable-item .c-time-badge {
-            display: inline-block; background: #fef08a; color: #854d0e; border: 1.5px solid #facc15;
-            font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-bottom: 6px;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; line-height: 1.3;
+            display: inline-block; background: #fef08a; color: #854d0e; border: 1.5px solid #facc15; font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 4px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; line-height: 1.3;
         }
         .timetable-item .c-title { font-weight: bold; font-size: 14px; color: #3b0764; line-height: 1.3; margin-top: 1px; }
         .timetable-item .c-teacher { color: #581c87; margin-top: 4px; font-size: 12px; font-weight: 500; }
@@ -393,32 +323,18 @@
         }
 
         body.print-timetable-only * { visibility: hidden !important; }
-        body.print-timetable-only #timetableModal,
-        body.print-timetable-only #timetableModal * { visibility: visible !important; }
+        body.print-timetable-only #timetableModal, body.print-timetable-only #timetableModal * { visibility: visible !important; }
         body.print-timetable-only #timetableModal {
-            position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important;
-            height: auto !important; background: white !important; display: block !important; padding: 0 !important;
+            position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: auto !important; background: white !important; display: block !important; padding: 0 !important;
         }
         body.print-timetable-only #timetableModal .modal-box {
-            width: 100% !important; max-width: 100% !important; box-shadow: none !important; border: none !important;
-            padding: 0 !important; max-height: none !important; overflow: visible !important;
+            width: 100% !important; max-width: 100% !important; box-shadow: none !important; border: none !important; padding: 0 !important; max-height: none !important; overflow: visible !important;
         }
-        body.print-timetable-only .timetable-week-grid {
-            display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 6px !important; margin-top: 10px !important;
-        }
-        body.print-timetable-only .timetable-day-col {
-            border: 1px solid #000 !important; background: #fff !important; padding: 6px !important; min-height: 480px !important;
-        }
-        body.print-timetable-only .timetable-day-header {
-            background: #f3e8ff !important; border-bottom: 1.5px solid #000 !important; color: #000 !important; font-size: 11pt !important;
-        }
-        body.print-timetable-only .timetable-item {
-            border: 1px solid #333 !important; border-left: 4px solid #7c3aed !important; box-shadow: none !important; margin-bottom: 8px !important; padding: 6px !important;
-        }
-        body.print-timetable-only .timetable-item .c-time-badge {
-            background: #fef08a !important; color: #000 !important; border: 1.5px solid #ca8a04 !important;
-            font-size: 9.5pt !important; font-weight: bold !important; white-space: nowrap !important;
-        }
+        body.print-timetable-only .timetable-week-grid { display: grid !important; grid-template-columns: repeat(7, 1fr) !important; gap: 6px !important; margin-top: 10px !important; }
+        body.print-timetable-only .timetable-day-col { border: 1px solid #000 !important; background: #fff !important; padding: 6px !important; min-height: 480px !important; }
+        body.print-timetable-only .timetable-day-header { background: #f3e8ff !important; border-bottom: 1.5px solid #000 !important; color: #000 !important; font-size: 11pt !important; }
+        body.print-timetable-only .timetable-item { border: 1px solid #333 !important; border-left: 4px solid #7c3aed !important; box-shadow: none !important; margin-bottom: 8px !important; padding: 6px !important; }
+        body.print-timetable-only .timetable-item .c-time-badge { background: #fef08a !important; color: #000 !important; border: 1.5px solid #ca8a04 !important; font-size: 9.5pt !important; font-weight: bold !important; white-space: nowrap !important; }
         body.print-timetable-only .timetable-item .c-title { color: #000 !important; font-size: 10.5pt !important; }
         body.print-timetable-only .timetable-item .c-teacher { color: #333 !important; font-size: 9pt !important; }
         .print-header { display: none; }
@@ -442,7 +358,7 @@
 
 <header>
     <div class="header-title">
-        <h2 id="headerBranchTitle">至德補習班 智慧教務與點名系統</h2>
+        <h2 id="headerBranchTitle">分校智慧教務與點名系統</h2>
         <p>全校學籍中央控制總庫 ｜ 支援單一生多科跨班選課與自訂到班星期 ｜ 各分校資料獨立</p>
     </div>
     
@@ -473,6 +389,10 @@
             <span class="tab-icon">👥</span>
             <span>學生總覽</span>
         </button>
+        <button class="tab-btn" onclick="switchTab('branch-settings')">
+            <span class="tab-icon">🏢</span>
+            <span>分校設定</span>
+        </button>
     </div>
 
     <!-- 1. 今日點名與日誌成績 -->
@@ -480,7 +400,7 @@
         <div class="card no-print" id="homeAlertBanner" style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 2px solid #f59e0b; padding: 14px; margin-bottom: 15px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                 <h4 style="color: #92400e; font-size: 15px; margin:0; display:flex; align-items:center; gap:6px;">
-                    📢 櫃檯即時提醒：今日尚有學生未到班或班級尚未完成點名
+                    📢 櫃檯即時提醒：今日尚有無到班學員或班級尚未完成點名
                 </h4>
                 <button class="btn btn-warning" style="padding:4px 10px; font-size:12px; color:#000;" onclick="switchTab('absent-alert')">查看詳細未到/未點名名冊 🔍</button>
             </div>
@@ -530,7 +450,7 @@
             <div class="paper-sheet" id="paperSheetArea">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:8px; flex-wrap:wrap; gap:8px;">
                     <div>
-                        <h3 id="paperCourseTitle" style="font-size:16px; color:#111;">至德補習班 - 今日課堂點名單</h3>
+                        <h3 id="paperCourseTitle" style="font-size:16px; color:#111;">點名單</h3>
                         <p id="paperMetaInfo" style="font-size:11px; color:#444; margin-top:2px;"></p>
                     </div>
                     <button class="btn btn-primary no-print" onclick="window.print()" style="font-size:12px; padding:6px 12px;">🖨️ 列印此點名單</button>
@@ -611,7 +531,7 @@
             </div>
 
             <div class="print-header">
-                <h2 id="sheetPrintTitle">至德補習班 學生點名總表</h2>
+                <h2 id="sheetPrintTitle">學生點名總表</h2>
                 <p id="sheetPrintSub" style="margin-top:3px; font-size:9pt;"></p>
             </div>
 
@@ -666,14 +586,7 @@
                 <div class="grid-2" style="gap:10px;">
                     <div>
                         <label style="display:block; font-size:12.5px; font-weight:bold; color:var(--primary); margin-bottom:4px;">🏫 選擇檢視部門 / 總覽：</label>
-                        <select id="deptSelectDropdown" class="select-styled" onchange="onDeptDropdownChange(this.value)" style="margin:0; font-size:14px; padding:8px 12px;">
-                            <option value="allclasses">🏫 班級全覽 (管理專區)</option>
-                            <option value="care">🏢 安親部</option>
-                            <option value="elementary">📘 國小部</option>
-                            <option value="junior">📙 國中部</option>
-                            <option value="all">🌟 全校學生</option>
-                            <option value="graduated">🎓 畢業班</option>
-                        </select>
+                        <select id="deptSelectDropdown" class="select-styled" onchange="onDeptDropdownChange(this.value)" style="margin:0; font-size:14px; padding:8px 12px;"></select>
                     </div>
                     <div id="classDropdownWrapper" style="display:none;">
                         <label style="display:block; font-size:12.5px; font-weight:bold; color:var(--primary); margin-bottom:4px;">📚 選擇部門所屬班級：</label>
@@ -685,14 +598,9 @@
             <!-- 全校班級課程管理專區 -->
             <div id="allClassesManageBox" style="display:none;" class="card" style="border:2px solid #d8b4fe;">
                 <div style="color:#6b21a8; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-                    <span style="font-weight:bold; font-size:15px;">🏫 全校班級課程管理專區：</span>
+                    <span style="font-weight:bold; font-size:15px;">🏫 分校班級課程管理專區：</span>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                        <div class="manage-cat-group" id="manageCatGroup">
-                            <button class="manage-cat-btn active" data-cat="all" onclick="setManageCategory('all')">全部</button>
-                            <button class="manage-cat-btn" data-cat="care" onclick="setManageCategory('care')">安親班</button>
-                            <button class="manage-cat-btn" data-cat="elementary" onclick="setManageCategory('elementary')">國小部</button>
-                            <button class="manage-cat-btn" data-cat="junior" onclick="setManageCategory('junior')">國中部</button>
-                        </div>
+                        <div class="manage-cat-group" id="manageCatGroup"></div>
                         <button class="btn btn-purple" style="padding:5px 12px; font-size:12px;" onclick="generateScheduleTimetable()">📅 每週課表</button>
                     </div>
                 </div>
@@ -754,6 +662,30 @@
                         📥 下載學生資料（CSV 備份檔）
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 分校與部門學制自訂設定中心 -->
+    <div id="tab-branch-settings" style="display:none;">
+        <div class="card" style="border-top: 4px solid var(--purple);">
+            <h3 style="color:var(--primary); font-size:17px; margin-bottom:6px;">🏢 【<span id="settingsBranchName"></span>】分校學部/部門自訂設定</h3>
+            <p style="color:#666; font-size:13px; margin-bottom:14px;">您可以在此自由為目前分校設定專屬的學部或部門名稱（例如：英文部、數學部、國中全科班等），設定後會自動更新至各個選單與管理介面。</p>
+
+            <div style="background:#faf5ff; border:1.5px solid #d8b4fe; padding:14px; border-radius:10px; margin-bottom:16px;">
+                <h4 style="color:var(--primary); font-size:15px; margin-bottom:8px;">➕ 新增此分校專屬部門</h4>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <input type="text" id="newDeptKeyInput" placeholder="代號英文 (例: english)" style="flex:1; min-width:140px; margin:0; padding:8px;">
+                    <input type="text" id="newDeptLabelInput" placeholder="顯示名稱 (例: 🔤 英文部)" style="flex:2; min-width:180px; margin:0; padding:8px;">
+                    <button class="btn btn-success" onclick="addNewDepartment()" style="padding:8px 16px;">新增部門</button>
+                </div>
+            </div>
+
+            <h4 style="color:var(--primary); font-size:15px; margin-bottom:8px;">目前分校已啟用的部門清單：</h4>
+            <div id="branchDepartmentsList" style="overflow-x:auto;"></div>
+
+            <div style="margin-top:20px; text-align:right; border-top:1px solid #e9d5ff; padding-top:12px;">
+                <button class="btn btn-success" onclick="saveBranchDepartmentsConfig()" style="padding:9px 20px; font-size:14px;">💾 儲存部門設定 (需密碼)</button>
             </div>
         </div>
     </div>
@@ -826,7 +758,7 @@
     <div class="modal-box" style="max-width: 1100px;">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:8px; flex-wrap:wrap; gap:8px;">
             <div>
-                <h2 id="timetableModalTitle" style="color:var(--primary); font-size:18px; font-weight:bold;">至德補習班 - 每週課程時間表</h2>
+                <h2 id="timetableModalTitle" style="color:var(--primary); font-size:18px; font-weight:bold;">每週課程時間表</h2>
                 <p id="timetableModalSub" style="font-size:12px; color:#6b21a8; margin-top:2px;"></p>
             </div>
             <div class="no-print" style="display:flex; gap:6px;">
@@ -1027,13 +959,9 @@
     <div class="modal-box" style="max-width:480px;">
         <h3 style="color:var(--primary); margin-bottom:12px; font-size:17px;">➕ 新增班級課程</h3>
         <label style="font-size:13px;"><b>所屬部門：</b></label>
-        <select id="m_new_class_dept">
-            <option value="care">安親部</option>
-            <option value="elementary">國小部</option>
-            <option value="junior">國中部</option>
-        </select>
+        <select id="m_new_class_dept" class="select-styled"></select>
 
-        <label style="font-size:13px;"><b>班級課程名稱：</b></label>
+        <label style="font-size:13px; margin-top:10px; display:block;"><b>班級課程名稱：</b></label>
         <input type="text" id="m_new_class_name" placeholder="例如：小四安親班">
 
         <label style="font-size:13px;"><b>上課星期：</b></label>
@@ -1060,13 +988,9 @@
         <input type="hidden" id="edit_original_name">
 
         <label style="font-size:13px;"><b>所屬部門：</b></label>
-        <select id="edit_class_dept">
-            <option value="care">安親部</option>
-            <option value="elementary">國小部</option>
-            <option value="junior">國中部</option>
-        </select>
+        <select id="edit_class_dept" class="select-styled"></select>
 
-        <label style="font-size:13px;"><b>班級課程名稱：</b></label>
+        <label style="font-size:13px; margin-top:10px; display:block;"><b>班級課程名稱：</b></label>
         <input type="text" id="edit_class_name" placeholder="例如：小四安親班">
 
         <label style="font-size:13px;"><b>上課星期：</b></label>
@@ -1101,29 +1025,15 @@
         { key: 'all_courses', label: '👁️ 全部課程' }
     ];
 
-    const DEFAULT_CONFIG_FILTER_ORDER = [
-        { key: 'all', label: '🏫 全部' },
-        { key: 'care', label: '🏢 安親班' },
+    const DEFAULT_DEPARTMENTS = [
+        { key: 'care', label: '🏢 安親部' },
         { key: 'elementary', label: '📘 國小部' },
         { key: 'junior', label: '📙 國中部' }
     ];
 
     let searchDebounceTimer = null;
 
-    // 預設 7-8 間分校清單（乾淨的單一選單條列）
-    const DEFAULT_BRANCH_LIST = [
-        "斗六總校",
-        "至德補習班",
-        "斗六顧德校",
-        "虎尾分校",
-        "虎尾安親校",
-        "虎尾美語校",
-        "虎尾菁英校",
-        "西螺分校",
-        "麥寮分校",
-        "斗南分校"
-    ];
-
+    const DEFAULT_BRANCH_LIST = ["興嘉分校", "僑平分校", "民雄總校", "世界美語", "斗六總校", "虎尾分校", "西螺分校", "斗南分校"];
     let allBranches = JSON.parse(localStorage.getItem('zhide_all_branches')) || DEFAULT_BRANCH_LIST;
     let currentBranch = localStorage.getItem('zhide_current_branch') || allBranches[0];
 
@@ -1132,24 +1042,25 @@
     }
 
     window.state = {
+        departments: [],
         courses: {},
         students: [],
         holidays: [],
         attendanceData: {},
         currentCourse: null,
         courseFilterMode: 'today', 
-        currentDeptView: 'care',
+        currentDeptView: '',
         currentFilterClass: null,
         manageCategory: 'all',
         configDeptFilter: 'all',
         selectedSheetCourse: null,
         filterOrder: DEFAULT_FILTER_ORDER,
-        configFilterOrder: DEFAULT_CONFIG_FILTER_ORDER,
         quickRollContext: { courseName: '', dateStr: '' },
         currentFilteredStudents: []
     };
 
     function loadBranchData() {
+        const defaultDepartments = DEFAULT_DEPARTMENTS;
         const defaultCourses = {
             care: [{ name: '小四安親課輔班', day: '星期一、星期二、星期三、星期四、星期五', time: '16:30 - 18:30', teacher: '陳老師' }],
             elementary: [{ name: '小五數學培優班', day: '星期二、星期四', time: '18:30 - 20:30', teacher: '林老師' }],
@@ -1159,6 +1070,7 @@
             ]
         };
 
+        window.state.departments = JSON.parse(localStorage.getItem(getBranchKey('departments'))) || defaultDepartments;
         window.state.courses = JSON.parse(localStorage.getItem(getBranchKey('courses'))) || defaultCourses;
         window.state.students = JSON.parse(localStorage.getItem(getBranchKey('students'))) || [];
         window.state.holidays = JSON.parse(localStorage.getItem(getBranchKey('holidays')) || '[]');
@@ -1166,8 +1078,15 @@
         window.state.currentCourse = null;
         window.state.selectedSheetCourse = null;
 
+        if (window.state.departments.length > 0) {
+            window.state.currentDeptView = window.state.departments[0].key;
+        }
+
         document.getElementById('headerBranchTitle').innerText = `${currentBranch} 智慧教務與點名系統`;
+        document.getElementById('settingsBranchName').innerText = currentBranch;
         renderBranchDropdown();
+        renderDeptSelectOptions();
+        renderBranchDepartmentsConfigList();
     }
 
     function renderBranchDropdown() {
@@ -1214,6 +1133,7 @@
         if (!checkPassword(`🔒 刪除分校【${currentBranch}】及其所有資料，請輸入管理密碼：`)) return;
 
         if (confirm(`⚠️ 確定要刪除分校【${currentBranch}】嗎？此動作將清除該校所有班級與學生資料，無法復原！`)) {
+            localStorage.removeItem(getBranchKey('departments'));
             localStorage.removeItem(getBranchKey('courses'));
             localStorage.removeItem(getBranchKey('students'));
             localStorage.removeItem(getBranchKey('holidays'));
@@ -1231,6 +1151,94 @@
             alert('✅ 分校已刪除！');
         }
     };
+
+    // ── 分校部門動態設定功能 ──
+    function renderBranchDepartmentsConfigList() {
+        const container = document.getElementById('branchDepartmentsList');
+        if (!container) return;
+        let html = `<table><thead><tr><th style="width:120px;">代號 (Key)</th><th>顯示名稱 (Label)</th><th style="width:80px;">操作</th></tr></thead><tbody>`;
+        window.state.departments.forEach((dept, idx) => {
+            html += `<tr>
+                <td><input type="text" value="${dept.key}" id="d_key_${idx}" style="margin:0; padding:5px; font-size:13px;" readonly style="background:#f3e8ff;"></td>
+                <td><input type="text" value="${dept.label}" id="d_label_${idx}" style="margin:0; padding:5px; font-size:13px;"></td>
+                <td>${idx >= 3 ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:11.5px;" onclick="removeDeptRow(${idx})">刪除</button>` : '<span style="color:#888; font-size:11.5px;">預設</span>'}</td>
+            </tr>`;
+        });
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    }
+
+    window.addNewDepartment = function() {
+        const keyInput = document.getElementById('newDeptKeyInput').value.trim().toLowerCase();
+        const labelInput = document.getElementById('newDeptLabelInput').value.trim();
+        if (!keyInput || !labelInput) return alert('請完整填寫部門代號與顯示名稱！');
+        if (window.state.departments.some(d => d.key === keyInput)) return alert('此部門代號已存在！');
+
+        window.state.departments.push({ key: keyInput, label: labelInput });
+        if (!window.state.courses[keyInput]) window.state.courses[keyInput] = [];
+        
+        document.getElementById('newDeptKeyInput').value = '';
+        document.getElementById('newDeptLabelInput').value = '';
+        renderBranchDepartmentsConfigList();
+    };
+
+    window.removeDeptRow = function(idx) {
+        if (window.state.departments.length <= 1) return alert('至少需保留一個部門！');
+        window.state.departments.splice(idx, 1);
+        renderBranchDepartmentsConfigList();
+    };
+
+    window.saveBranchDepartmentsConfig = function() {
+        if (!checkPassword("🔒 修改分校部門設定，請輸入管理密碼：")) return;
+
+        const newDepts = [];
+        const rows = document.querySelectorAll('#branchDepartmentsList tbody tr');
+        rows.forEach((row, idx) => {
+            const k = document.getElementById(`d_key_${idx}`).value.trim();
+            const l = document.getElementById(`d_label_${idx}`).value.trim();
+            if (k && l) {
+                newDepts.push({ key: k, label: l });
+                if (!window.state.courses[k]) window.state.courses[k] = [];
+            }
+        });
+
+        window.state.departments = newDepts;
+        localStorage.setItem(getBranchKey('departments'), JSON.stringify(window.state.departments));
+        saveCoursesToLocalStorage();
+
+        alert("✅ 分校部門設定已成功儲存！");
+        initLocalStorageData();
+        switchTab('rollcall');
+    };
+
+    function renderDeptSelectOptions() {
+        const deptSel = document.getElementById('deptSelectDropdown');
+        const newClassDeptSel = document.getElementById('m_new_class_dept');
+        const editClassDeptSel = document.getElementById('edit_class_dept');
+
+        let optionsHtml = `<option value="allclasses">🏫 班級全覽 (管理專區)</option>`;
+        let modalOptionsHtml = '';
+
+        window.state.departments.forEach(d => {
+            optionsHtml += `<option value="${d.key}">${d.label}</option>`;
+            modalOptionsHtml += `<option value="${d.key}">${d.label}</option>`;
+        });
+
+        optionsHtml += `<option value="all">🌟 全校學生</option><option value="graduated">🎓 畢業班</option>`;
+
+        if (deptSel) deptSel.innerHTML = optionsHtml;
+        if (newClassDeptSel) newClassDeptSel.innerHTML = modalOptionsHtml;
+        if (editClassDeptSel) editClassDeptSel.innerHTML = modalOptionsHtml;
+
+        const manageGroup = document.getElementById('manageCatGroup');
+        if (manageGroup) {
+            let catHtml = `<button class="manage-cat-btn active" data-cat="all" onclick="setManageCategory('all')">全部</button>`;
+            window.state.departments.forEach(d => {
+                catHtml += `<button class="manage-cat-btn" data-cat="${d.key}" onclick="setManageCategory('${d.key}')">${d.label.replace(/[^一-龥a-zA-Z]/g, '')}</button>`;
+            });
+            manageGroup.innerHTML = catHtml;
+        }
+    }
 
     function getTaiwanDateString(dateObj = new Date()) {
         const utc = dateObj.getTime() + (dateObj.getTimezoneOffset() * 60000);
@@ -1327,6 +1335,7 @@
 
     function initLocalStorageData() {
         initDropdowns();
+        renderDeptSelectOptions();
         renderCourseFilterButtons();
         renderConfigFilterButtons();
         renderMasterStudentsTable();
@@ -1360,6 +1369,7 @@
         document.getElementById('tab-sheet').style.display = tab === 'sheet' ? 'block' : 'none';
         document.getElementById('tab-course-config').style.display = tab === 'course-config' ? 'block' : 'none';
         document.getElementById('tab-students-master').style.display = tab === 'students-master' ? 'block' : 'none';
+        document.getElementById('tab-branch-settings').style.display = tab === 'branch-settings' ? 'block' : 'none';
 
         if (tab === 'rollcall') {
             document.querySelectorAll('.tab-btn')[0].classList.add('active');
@@ -1382,6 +1392,9 @@
             renderConfigFilterButtons();
             renderCourseConfigList();
             renderHolidayList();
+        } else if (tab === 'branch-settings') {
+            document.querySelectorAll('.tab-btn')[5].classList.add('active');
+            renderBranchDepartmentsConfigList();
         } else {
             document.querySelectorAll('.tab-btn')[4].classList.add('active');
             initDropdowns();
@@ -1391,7 +1404,9 @@
 
     function initDropdowns() {
         const deptSel = document.getElementById('deptSelectDropdown');
-        if (deptSel) deptSel.value = window.state.currentDeptView;
+        if (deptSel && window.state.departments.some(d => d.key === window.state.currentDeptView)) {
+            deptSel.value = window.state.currentDeptView;
+        }
         updateClassDropdownOptions();
     }
 
@@ -1460,16 +1475,14 @@
         grid.innerHTML = '';
 
         const cat = window.state.manageCategory || 'all';
-        let targetDepts = ['care', 'elementary', 'junior'];
-        if (cat === 'care') targetDepts = ['care'];
-        else if (cat === 'elementary') targetDepts = ['elementary'];
-        else if (cat === 'junior') targetDepts = ['junior'];
+        let targetDepts = window.state.departments.map(d => d.key);
+        if (cat !== 'all') targetDepts = [cat];
 
         let totalCards = 0;
 
         targetDepts.forEach(deptKey => {
-            const deptName = deptKey === 'care' ? '安親部' : (deptKey === 'elementary' ? '國小部' : '國中部');
-            const deptBadge = deptKey === 'care' ? '#7c3aed' : (deptKey === 'elementary' ? '#15803d' : '#b45309');
+            const deptObj = window.state.departments.find(d => d.key === deptKey);
+            const deptName = deptObj ? deptObj.label : deptKey;
             const list = window.state.courses[deptKey] || [];
 
             list.forEach((c, cIndex) => {
@@ -1489,7 +1502,7 @@
                 card.innerHTML = `
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:11px; font-weight:bold; color:${deptBadge}; border:1px solid ${deptBadge}; padding:2px 6px; border-radius:4px;">${deptName}</span>
+                            <span style="font-size:11px; font-weight:bold; color:#7c3aed; border:1px solid #7c3aed; padding:2px 6px; border-radius:4px;">${deptName}</span>
                         </div>
                         <div style="font-size:15px; font-weight:bold; color:var(--primary); margin:6px 0 3px;">🏫 ${cName}</div>
                         <div style="font-size:12px; color:#555;">授課：<b>${cTeacher}</b> | <b>${cDay || '無排課(保留)'}</b></div>
@@ -1514,15 +1527,14 @@
         if (!select) return;
         select.innerHTML = '';
 
-        const deptLabels = { care: '🏢 安親部', elementary: '📘 國小部', junior: '📙 國中部' };
         let hasCourses = false;
 
-        ['care', 'elementary', 'junior'].forEach(dept => {
-            const list = window.state.courses[dept] || [];
+        window.state.departments.forEach(deptObj => {
+            const list = window.state.courses[deptObj.key] || [];
             if (list.length > 0) {
                 hasCourses = true;
                 const optGroup = document.createElement('optgroup');
-                optGroup.label = deptLabels[dept];
+                optGroup.label = deptObj.label;
 
                 list.forEach(c => {
                     const cName = typeof c === 'object' ? c.name : c;
@@ -1563,17 +1575,12 @@
 
     window.generateScheduleTimetable = function() {
         const cat = window.state.manageCategory || 'all';
-        let targetDepts = ['care', 'elementary', 'junior'];
+        let targetDepts = window.state.departments.map(d => d.key);
         let scopeTitle = "全校所有課程每週課表";
-        if (cat === 'care') {
-            targetDepts = ['care'];
-            scopeTitle = "安親部專屬每週課表";
-        } else if (cat === 'elementary') {
-            targetDepts = ['elementary'];
-            scopeTitle = "國小部專屬每週課表";
-        } else if (cat === 'junior') {
-            targetDepts = ['junior'];
-            scopeTitle = "國中部專屬每週課表";
+        if (cat !== 'all') {
+            targetDepts = [cat];
+            const deptObj = window.state.departments.find(d => d.key === cat);
+            scopeTitle = `${deptObj ? deptObj.label : cat}專屬每週課表`;
         }
 
         document.getElementById('timetableModalTitle').innerText = `${currentBranch} - ${scopeTitle}`;
@@ -1849,10 +1856,13 @@
 
         window.state.currentFilteredStudents = filtered;
 
+        const deptObj = window.state.departments.find(d => d.key === deptKey);
+        const deptLabelName = deptObj ? deptObj.label : deptKey;
+
         let titleDesc = '目前學生名冊';
         if (deptKey === 'graduated') titleDesc = '🎓 畢業/離班學員清單';
         else if (deptKey === 'all') titleDesc = '🌟 全校所有學生總覽';
-        else titleDesc = `目前學生名冊 (${filterClass || (deptKey==='care'?'安親部':(deptKey==='elementary'?'國小部':'國中部'))})`;
+        else titleDesc = `目前學生名冊 (${filterClass || deptLabelName})`;
 
         document.getElementById('studentListTitle').innerText = `${titleDesc} - 共 ${filtered.length} 人`;
         if (gradCountBadge) gradCountBadge.innerText = `共 ${filtered.length} 人`;
@@ -2024,10 +2034,6 @@
         const filterClass = window.state.currentFilterClass;
         let fileTag = `${currentBranch}_學生名冊`;
         if (filterClass) fileTag += `_${filterClass}`;
-        else if (deptKey === 'care') fileTag += "_安親部";
-        else if (deptKey === 'elementary') fileTag += "_國小部";
-        else if (deptKey === 'junior') fileTag += "_國中部";
-        else if (deptKey === 'graduated') fileTag += "_畢業班";
         else fileTag += "_全校學生";
 
         link.setAttribute("href", url);
@@ -2046,11 +2052,10 @@
 
     function getCourseOptionsHtml(selectedValue = "") {
         let html = `<option value="">-- 請選擇班級課程 --</option>`;
-        const deptLabels = { care: '🏢 安親部', elementary: '📘 國小部', junior: '📙 國中部' };
-        ['care', 'elementary', 'junior'].forEach(dept => {
-            const list = window.state.courses[dept] || [];
+        window.state.departments.forEach(deptObj => {
+            const list = window.state.courses[deptObj.key] || [];
             if (list.length > 0) {
-                html += `<optgroup label="${deptLabels[dept]}">`;
+                html += `<optgroup label="${deptObj.label}">`;
                 list.forEach(c => {
                     const cName = typeof c === 'object' ? c.name : c;
                     html += `<option value="${cName}" ${cName === selectedValue ? 'selected' : ''}>${cName}</option>`;
@@ -2490,11 +2495,11 @@
     function getAllCoursesList() {
         let list = [];
         const defaultStart = getTaiwanDateString().slice(0, 8) + '01';
-        ['care', 'elementary', 'junior'].forEach(dept => {
-            (window.state.courses[dept] || []).forEach((c) => {
+        window.state.departments.forEach(deptObj => {
+            (window.state.courses[deptObj.key] || []).forEach((c) => {
                 const name = typeof c === 'object' ? c.name : c;
                 list.push({
-                    dept: dept,
+                    dept: deptObj.key,
                     name: name,
                     day: typeof c === 'object' ? (c.day !== undefined ? c.day : '') : '',
                     time: typeof c === 'object' ? (c.time || '') : '',
@@ -2550,8 +2555,14 @@
 
         let filteredCourses = [];
         if (mode === 'today') filteredCourses = todayCourses;
-        else if (mode === 'junior') filteredCourses = todayCourses.filter(c => c.dept === 'junior');
-        else if (mode === 'elementary_care') filteredCourses = todayCourses.filter(c => c.dept === 'elementary' || c.dept === 'care');
+        else if (mode === 'junior') {
+            const juniorKey = window.state.departments.length > 2 ? window.state.departments[2].key : 'junior';
+            filteredCourses = todayCourses.filter(c => c.dept === juniorKey);
+        }
+        else if (mode === 'elementary_care') {
+            const keys = window.state.departments.slice(0, 2).map(d => d.key);
+            filteredCourses = todayCourses.filter(c => keys.includes(c.dept));
+        }
         else if (mode === 'all_courses') filteredCourses = allCourses;
 
         if (filteredCourses.length === 0) {
@@ -2563,16 +2574,15 @@
 
         filteredCourses.forEach(c => {
             const isToday = c.day && (c.day.includes(curDayName) || c.day.includes(curDayName.replace('星期', '週')));
-            const deptLabel = c.dept === 'care' ? '安親部' : (c.dept === 'elementary' ? '國小部' : '國中部');
-            const deptColor = c.dept === 'care' ? '#f3e8ff' : (c.dept === 'elementary' ? '#dcfce7' : '#fef3c7');
-            const deptTxt = c.dept === 'care' ? '#7c3aed' : (c.dept === 'elementary' ? '#15803d' : '#b45309');
+            const deptObj = window.state.departments.find(d => d.key === c.dept);
+            const deptLabel = deptObj ? deptObj.label.replace(/[^一-龥a-zA-Z]/g, '') : c.dept;
 
             const card = document.createElement('div');
             card.className = `course-card ${window.state.currentCourse && window.state.currentCourse.name === c.name ? 'active' : ''}`;
             card.onclick = () => selectCourse(c.name);
 
             card.innerHTML = `
-                <span style="font-size:11.5px; font-weight:bold; background:${deptColor}; color:${deptTxt}; padding:2px 6px; border-radius:4px;">
+                <span style="font-size:11.5px; font-weight:bold; background:#f3e8ff; color:#7c3aed; padding:2px 6px; border-radius:4px;">
                     ${deptLabel}
                 </span>
                 ${isToday ? '<span style="float:right; background:#fee2e2; color:#b91c1c; font-size:11.5px; font-weight:bold; padding:2px 6px; border-radius:4px;">今日排課</span>' : ''}
@@ -2589,7 +2599,8 @@
         if (!window.state.currentCourse) return;
 
         const c = window.state.currentCourse;
-        const deptLabel = c.dept === 'care' ? '安親部' : (c.dept === 'elementary' ? '國小部' : '國中部');
+        const deptObj = window.state.departments.find(d => d.key === c.dept);
+        const deptLabel = deptObj ? deptObj.label : c.dept;
 
         document.getElementById('rollDetailCard').style.display = 'block';
         document.getElementById('rollCourseTitle').innerText = `📖 ${c.name}`;
@@ -3197,13 +3208,19 @@
         if (!container) return;
         container.innerHTML = '';
 
-        window.state.configFilterOrder.forEach((item, index) => {
+        window.state.departments.forEach((d) => {
             const btn = document.createElement('div');
-            btn.className = `filter-pill ${window.state.configDeptFilter === item.key ? 'active' : ''}`;
-            btn.innerText = item.label;
-            btn.onclick = () => setConfigDeptFilter(item.key);
+            btn.className = `filter-pill ${window.state.configDeptFilter === d.key ? 'active' : ''}`;
+            btn.innerText = d.label;
+            btn.onclick = () => setConfigDeptFilter(d.key);
             container.appendChild(btn);
         });
+        
+        const allBtn = document.createElement('div');
+        allBtn.className = `filter-pill ${window.state.configDeptFilter === 'all' ? 'active' : ''}`;
+        allBtn.innerText = '🏫 全部';
+        allBtn.onclick = () => setConfigDeptFilter('all');
+        container.appendChild(allBtn);
     }
 
     window.setConfigDeptFilter = function(filterKey) {
@@ -3237,7 +3254,8 @@
             html += `<tr><td colspan="5" style="padding:20px; color:#888;">此分類目前尚無班級。</td></tr>`;
         } else {
             filteredCourses.forEach(c => {
-                const deptName = c.dept === 'care' ? '安親部' : (c.dept === 'elementary' ? '國小部' : '國中部');
+                const deptObj = window.state.departments.find(d => d.key === c.dept);
+                const deptName = deptObj ? deptObj.label : c.dept;
                 html += `<tr>
                     <td><b>${c.name}</b></td>
                     <td>${deptName}</td>
