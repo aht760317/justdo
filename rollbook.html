@@ -426,10 +426,10 @@
 </head>
 <body>
 
-<!-- 最上方多分校控制列（支援群組分類選單） -->
+<!-- 最上方分校控制列：總管理處選單 -->
 <div class="branch-bar no-print">
     <div style="display:flex; align-items:center; gap:8px;">
-        <span>🏢 <b>選擇管理分校：</b></span>
+        <span>🏢 <b>總管理處 ➔ 選擇分校：</b></span>
         <select id="branchSelectDropdown" onchange="switchBranch(this.value)" style="padding:5px 12px; font-size:14px; border-radius:6px; border:1.5px solid #d8b4fe; font-weight:bold; color:#3b0764; margin:0; width:auto; background:#fff;">
             <!-- 動態填入分校清單 -->
         </select>
@@ -761,18 +761,10 @@
 
 <!-- 新增分校彈窗 -->
 <div class="modal-overlay" id="addBranchModal">
-    <div class="modal-box" style="max-width:420px;">
+    <div class="modal-box" style="max-width:400px;">
         <h3 style="color:var(--primary); margin-bottom:12px; font-size:17px;">➕ 新增分校</h3>
-        <label style="font-size:13px;"><b>分校所屬區域/群組：</b></label>
-        <select id="newBranchGroup" class="select-styled" style="margin-bottom:10px;">
-            <option value="斗六總校區">斗六總校區</option>
-            <option value="虎尾大區">虎尾大區</option>
-            <option value="沿海與其他區">沿海與其他區</option>
-        </select>
-
         <label style="font-size:13px;"><b>分校完整名稱：</b></label>
-        <input type="text" id="newBranchNameInput" placeholder="例如：虎尾菁英校">
-
+        <input type="text" id="newBranchNameInput" placeholder="例如：林內分校">
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
             <button class="btn btn-success" onclick="saveNewBranch()" style="padding:7px 14px; font-size:13px;">確認新增</button>
             <button class="btn btn-outline" onclick="document.getElementById('addBranchModal').style.display='none'" style="padding:7px 14px; font-size:13px;">取消</button>
@@ -1118,15 +1110,22 @@
 
     let searchDebounceTimer = null;
 
-    // 預設 7-8 間分校分區結構
-    const DEFAULT_BRANCH_GROUPS = {
-        "斗六總校區": ["斗六總校", "至德補習班", "斗六顧德校"],
-        "虎尾大區": ["虎尾分校", "虎尾安親校", "虎尾美語校", "虎尾菁英校"],
-        "沿海與其他區": ["西螺分校", "麥寮分校", "斗南分校"]
-    };
+    // 預設 7-8 間分校清單（乾淨的單一選單條列）
+    const DEFAULT_BRANCH_LIST = [
+        "斗六總校",
+        "至德補習班",
+        "斗六顧德校",
+        "虎尾分校",
+        "虎尾安親校",
+        "虎尾美語校",
+        "虎尾菁英校",
+        "西螺分校",
+        "麥寮分校",
+        "斗南分校"
+    ];
 
-    let allBranchGroups = JSON.parse(localStorage.getItem('zhide_branch_groups')) || DEFAULT_BRANCH_GROUPS;
-    let currentBranch = localStorage.getItem('zhide_current_branch') || "至德補習班";
+    let allBranches = JSON.parse(localStorage.getItem('zhide_all_branches')) || DEFAULT_BRANCH_LIST;
+    let currentBranch = localStorage.getItem('zhide_current_branch') || allBranches[0];
 
     function getBranchKey(suffix) {
         return `zhide_${currentBranch}_${suffix}`;
@@ -1175,19 +1174,13 @@
         const select = document.getElementById('branchSelectDropdown');
         if (!select) return;
         select.innerHTML = '';
-
-        for (let groupName in allBranchGroups) {
-            const optGroup = document.createElement('optgroup');
-            optGroup.label = `📍 ${groupName}`;
-            allBranchGroups[groupName].forEach(bName => {
-                const opt = document.createElement('option');
-                opt.value = bName;
-                opt.innerText = `🏢 ${bName}`;
-                if (bName === currentBranch) opt.selected = true;
-                optGroup.appendChild(opt);
-            });
-            select.appendChild(optGroup);
-        }
+        allBranches.forEach(bName => {
+            const opt = document.createElement('option');
+            opt.value = bName;
+            opt.innerText = `🏢 ${bName}`;
+            if (bName === currentBranch) opt.selected = true;
+            select.appendChild(opt);
+        });
     }
 
     window.switchBranch = function(branchName) {
@@ -1204,19 +1197,12 @@
     };
 
     window.saveNewBranch = function() {
-        const groupName = document.getElementById('newBranchGroup').value;
         const name = document.getElementById('newBranchNameInput').value.trim();
         if (!name) return alert('請輸入分校名稱！');
+        if (allBranches.includes(name)) return alert('此分校名稱已存在於系統中！');
 
-        let exists = false;
-        for (let g in allBranchGroups) {
-            if (allBranchGroups[g].includes(name)) exists = true;
-        }
-        if (exists) return alert('此分校名稱已存在於系統中！');
-
-        if (!allBranchGroups[groupName]) allBranchGroups[groupName] = [];
-        allBranchGroups[groupName].push(name);
-        localStorage.setItem('zhide_branch_groups', JSON.stringify(allBranchGroups));
+        allBranches.push(name);
+        localStorage.setItem('zhide_all_branches', JSON.stringify(allBranches));
 
         document.getElementById('addBranchModal').style.display = 'none';
         switchBranch(name);
@@ -1224,10 +1210,7 @@
     };
 
     window.deleteCurrentBranch = function() {
-        let totalCount = 0;
-        for (let g in allBranchGroups) totalCount += allBranchGroups[g].length;
-
-        if (totalCount <= 1) return alert('⚠️ 系統中至少需保留一間分校，無法刪除！');
+        if (allBranches.length <= 1) return alert('⚠️ 系統中至少需保留一間分校，無法刪除！');
         if (!checkPassword(`🔒 刪除分校【${currentBranch}】及其所有資料，請輸入管理密碼：`)) return;
 
         if (confirm(`⚠️ 確定要刪除分校【${currentBranch}】嗎？此動作將清除該校所有班級與學生資料，無法復原！`)) {
@@ -1236,18 +1219,10 @@
             localStorage.removeItem(getBranchKey('holidays'));
             localStorage.removeItem(getBranchKey('attendance_records'));
 
-            for (let g in allBranchGroups) {
-                allBranchGroups[g] = allBranchGroups[g].filter(b => b !== currentBranch);
-                if (allBranchGroups[g].length === 0) delete allBranchGroups[g];
-            }
-            localStorage.setItem('zhide_branch_groups', JSON.stringify(allBranchGroups));
+            allBranches = allBranches.filter(b => b !== currentBranch);
+            localStorage.setItem('zhide_all_branches', JSON.stringify(allBranches));
 
-            for (let g in allBranchGroups) {
-                if (allBranchGroups[g].length > 0) {
-                    currentBranch = allBranchGroups[g][0];
-                    break;
-                }
-            }
+            currentBranch = allBranches[0];
             localStorage.setItem('zhide_current_branch', currentBranch);
 
             loadBranchData();
@@ -2887,7 +2862,7 @@
             banner.style.border = '2px solid #f59e0b';
             content.innerHTML = `
                 <div>📌 <b>尚有未點名班級：</b> <span style="color:#b45309; font-weight:bold;">${unCheckedCount > 0 ? summary.unassignedClasses.join('、') : '無'}</span></div>
-                <div style="margin-top:3px;">📌 <b>尚有尚未到班 / 請假學員：</b> <span style="color:#b91c1c; font-weight:bold;">共 ${unPresentStudents} 人次 (請至「還沒點名/未到」專區確認與填寫原因)</span></div>
+                <div style="margin-top:3px;">📌 <b>尚有尚未到班 / 請假學員：</b> <span style="color:#b91c1c; font-weight:bold;">共 ${unPresentStudents} 人次 (請至專區確認與填寫原因)</span></div>
             `;
         }
     }
