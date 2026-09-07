@@ -620,7 +620,7 @@
         </div>
 
         <div class="card" style="border-top: 4px solid var(--warning);">
-            <h3 style="color:var(--primary); font-size:17px;">📢 國定假日與停課放假設定 (全校雲端連動)</h3>
+            <h3 style="color:var(--primary); font-size:17px;">📢 國定假日與停課放假設定</h3>
             <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
                 <input type="date" id="newHolidayDate" style="padding:8px; border-radius:6px; border:1px solid #ccc; width:auto; margin:0;">
                 <input type="text" id="newHolidayName" placeholder="放假名稱 (例：中秋節放假)" style="padding:8px; border-radius:6px; border:1px solid #ccc; flex:1; min-width:160px; margin:0;">
@@ -1057,22 +1057,7 @@
     </div>
 </div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyD9RSb0rQzuo0nELR6CvLE06jyktS8YI2s",
-        authDomain: "my-project-9999-479215.firebaseapp.com",
-        projectId: "my-project-9999-479215",
-        storageBucket: "my-project-9999-479215.firebasestorage.app",
-        messagingSenderId: "1020162825898",
-        appId: "1:1020162825898:web:681a7825a197f34e713ad3"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
+<script>
     const SECURITY_CODE = "8888";
     const CONFIRM_ROLLCALL_CODE = "0000";
     const WEEK_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
@@ -1095,11 +1080,18 @@
     let searchDebounceTimer = null;
 
     window.state = {
-        courses: { care: [], elementary: [], junior: [] },
-        students: [],
+        courses: JSON.parse(localStorage.getItem('zhide_courses')) || {
+            care: [{ name: '至德小四安親課輔班', day: '星期一、星期二、星期三、星期四、星期五', time: '16:30 - 18:30', teacher: '陳老師' }],
+            elementary: [{ name: '至德小五數學培優班', day: '星期二、星期四', time: '18:30 - 20:30', teacher: '林老師' }],
+            junior: [
+                { name: '至德國二數學進階班', day: '星期一、星期四', time: '18:30 - 21:00', teacher: '吳老師' },
+                { name: '至德國三理化總複習', day: '星期三、星期五', time: '18:30 - 21:30', teacher: '張老師' }
+            ]
+        },
+        students: JSON.parse(localStorage.getItem('zhide_students')) || [],
         holidays: JSON.parse(localStorage.getItem('zhide_holidays') || '[]'),
         currentCourse: null,
-        attendanceData: {},
+        attendanceData: JSON.parse(localStorage.getItem('zhide_attendance_records') || '{}'),
         courseFilterMode: 'today', 
         currentDeptView: 'care',
         currentFilterClass: null,
@@ -1149,7 +1141,7 @@
         initDropdowns();
         renderCourseFilterButtons();
         renderConfigFilterButtons();
-        initCloudData();
+        initLocalStorageData();
     };
 
     function initGradYearDropdowns() {
@@ -1204,81 +1196,32 @@
         return list.join('、');
     }
 
-    async function initCloudData() {
-        try {
-            const coursesDoc = await getDoc(doc(db, "zhideClassLogSettings", "courses"));
-            if (coursesDoc.exists()) {
-                const data = coursesDoc.data().data || {};
-                window.state.courses = {
-                    care: data.care || [{ name: '至德小四安親課輔班', day: '星期一、星期二、星期三、星期四、星期五', time: '16:30 - 18:30', teacher: '陳老師' }],
-                    elementary: data.elementary || [{ name: '至德小五數學培優班', day: '星期二、星期四', time: '18:30 - 20:30', teacher: '林老師' }],
-                    junior: data.junior || [
-                        { name: '至德國二數學進階班', day: '星期一、星期四', time: '18:30 - 21:00', teacher: '吳老師' },
-                        { name: '至德國三理化總複習', day: '星期三、星期五', time: '18:30 - 21:30', teacher: '張老師' }
-                    ]
-                };
-            }
-
-            const studentsSnapshot = await getDocs(collection(db, "zhideClassLogStudents"));
-            window.state.students = [];
-            studentsSnapshot.forEach(d => {
-                const stuData = d.data();
-                const coursesArr = getStudentCoursesArray(stuData);
-                window.state.students.push({
-                    firestoreId: d.id,
-                    ...stuData,
-                    courses: coursesArr,
-                    courseScheduleDays: stuData.courseScheduleDays || {},
-                    course: coursesArr.join('、'),
-                    pickupNotes: stuData.pickupNotes || ''
-                });
-            });
-
-            const attendanceDoc = await getDoc(doc(db, "zhideClassLogSettings", "attendance"));
-            if (attendanceDoc.exists()) {
-                window.state.attendanceData = attendanceDoc.data().data || {};
-            } else {
-                window.state.attendanceData = JSON.parse(localStorage.getItem('zhide_attendance_records') || '{}');
-            }
-
-            const holidaysDoc = await getDoc(doc(db, "zhideClassLogSettings", "holidays"));
-            if (holidaysDoc.exists()) {
-                window.state.holidays = holidaysDoc.data().data || [];
-                localStorage.setItem('zhide_holidays', JSON.stringify(window.state.holidays));
-            } else {
-                window.state.holidays = JSON.parse(localStorage.getItem('zhide_holidays') || '[]');
-            }
-
-            initDropdowns();
-            renderCourseFilterButtons();
-            renderConfigFilterButtons();
-            renderMasterStudentsTable();
-            renderCourseCards();
-            renderSheetCourseDropdown();
-            renderHolidayList();
-            renderCourseConfigList();
-            updateHomeAlertBanner();
-        } catch (e) {
-            console.error("載入資料失敗：", e);
-        }
+    function initLocalStorageData() {
+        initDropdowns();
+        renderCourseFilterButtons();
+        renderConfigFilterButtons();
+        renderMasterStudentsTable();
+        renderCourseCards();
+        renderSheetCourseDropdown();
+        renderHolidayList();
+        renderCourseConfigList();
+        updateHomeAlertBanner();
     }
 
-    async function saveAttendanceToCloud() {
-        try {
-            await setDoc(doc(db, "zhideClassLogSettings", "attendance"), { data: window.state.attendanceData });
-        } catch (e) {
-            console.error("同步點名資料至雲端失敗：", e);
-            localStorage.setItem('zhide_attendance_records', JSON.stringify(window.state.attendanceData));
-        }
+    function saveCoursesToLocalStorage() {
+        localStorage.setItem('zhide_courses', JSON.stringify(window.state.courses));
     }
 
-    async function saveHolidaysToCloud() {
-        try {
-            localStorage.setItem('zhide_holidays', JSON.stringify(window.state.holidays));
-            await setDoc(doc(db, "zhideClassLogSettings", "holidays"), { data: window.state.holidays });
-        } catch (e) {
-            console.error("放假資料同步至雲端失敗：", e);
-        }
+    function saveStudentsToLocalStorage() {
+        localStorage.setItem('zhide_students', JSON.stringify(window.state.students));
+    }
+
+    function saveAttendanceToLocalStorage() {
+        localStorage.setItem('zhide_attendance_records', JSON.stringify(window.state.attendanceData));
+    }
+
+    function saveHolidaysToLocalStorage() {
+        localStorage.setItem('zhide_holidays', JSON.stringify(window.state.holidays));
     }
 
     window.switchTab = function(tab) {
@@ -1579,7 +1522,7 @@
         document.getElementById('editClassModal').style.display = 'flex';
     };
 
-    window.saveEditedClass = async function() {
+    window.saveEditedClass = function() {
         const origDept = document.getElementById('edit_original_dept').value;
         const origName = document.getElementById('edit_original_name').value;
         const newDept = document.getElementById('edit_class_dept').value;
@@ -1590,49 +1533,45 @@
 
         if (!newName) return alert('請輸入班級課程名稱！');
 
-        try {
-            let origStartDate = getTaiwanDateString().slice(0, 8) + '01';
-            let origEndDate = '';
-            if (window.state.courses[origDept]) {
-                const idx = window.state.courses[origDept].findIndex(c => (typeof c === 'object' ? c.name : c) === origName);
-                if (idx !== -1) {
-                    const oldObj = window.state.courses[origDept][idx];
-                    if (typeof oldObj === 'object' && oldObj.startDate) origStartDate = oldObj.startDate;
-                    if (typeof oldObj === 'object' && oldObj.endDate) origEndDate = oldObj.endDate;
-                    window.state.courses[origDept].splice(idx, 1);
-                }
+        let origStartDate = getTaiwanDateString().slice(0, 8) + '01';
+        let origEndDate = '';
+        if (window.state.courses[origDept]) {
+            const idx = window.state.courses[origDept].findIndex(c => (typeof c === 'object' ? c.name : c) === origName);
+            if (idx !== -1) {
+                const oldObj = window.state.courses[origDept][idx];
+                if (typeof oldObj === 'object' && oldObj.startDate) origStartDate = oldObj.startDate;
+                if (typeof oldObj === 'object' && oldObj.endDate) origEndDate = oldObj.endDate;
+                window.state.courses[origDept].splice(idx, 1);
             }
+        }
 
-            if (!window.state.courses[newDept]) window.state.courses[newDept] = [];
-            window.state.courses[newDept].push({ name: newName, day: newDay, time: newTime, teacher: newTeacher, startDate: origStartDate, endDate: origEndDate });
+        if (!window.state.courses[newDept]) window.state.courses[newDept] = [];
+        window.state.courses[newDept].push({ name: newName, day: newDay, time: newTime, teacher: newTeacher, startDate: origStartDate, endDate: origEndDate });
 
-            await setDoc(doc(db, "zhideClassLogSettings", "courses"), { data: window.state.courses });
+        saveCoursesToLocalStorage();
 
-            if (origName !== newName) {
-                const updatePromises = [];
-                window.state.students.forEach(stu => {
-                    const courses = getStudentCoursesArray(stu);
-                    if (courses.includes(origName)) {
-                        const updatedCourses = courses.map(c => c === origName ? newName : c);
-                        stu.courses = updatedCourses;
-                        stu.course = updatedCourses.join('、');
-                        if (stu.courseScheduleDays && stu.courseScheduleDays[origName]) {
-                            stu.courseScheduleDays[newName] = stu.courseScheduleDays[origName];
-                            delete stu.courseScheduleDays[origName];
-                        }
-                        updatePromises.push(setDoc(doc(db, "zhideClassLogStudents", stu.firestoreId), { ...stu, courses: updatedCourses, course: stu.course, courseScheduleDays: stu.courseScheduleDays || {} }));
+        if (origName !== newName) {
+            window.state.students.forEach(stu => {
+                const courses = getStudentCoursesArray(stu);
+                if (courses.includes(origName)) {
+                    const updatedCourses = courses.map(c => c === origName ? newName : c);
+                    stu.courses = updatedCourses;
+                    stu.course = updatedCourses.join('、');
+                    if (stu.courseScheduleDays && stu.courseScheduleDays[origName]) {
+                        stu.courseScheduleDays[newName] = stu.courseScheduleDays[origName];
+                        delete stu.courseScheduleDays[origName];
                     }
-                });
-                if (updatePromises.length > 0) await Promise.all(updatePromises);
-            }
+                }
+            });
+            saveStudentsToLocalStorage();
+        }
 
-            document.getElementById('editClassModal').style.display = 'none';
-            alert(`✅ 班級【${newName}】已更新！`);
-            initCloudData();
-        } catch (e) { console.error(e); alert('修改失敗！'); }
+        document.getElementById('editClassModal').style.display = 'none';
+        alert(`✅ 班級【${newName}】已更新！`);
+        initLocalStorageData();
     };
 
-    window.deleteClassCourseFromModal = async function() {
+    window.deleteClassCourseFromModal = function() {
         const dept = document.getElementById('edit_original_dept').value;
         const className = document.getElementById('edit_original_name').value;
         if (!checkPassword(`🔒 刪除班級【${className}】請輸入管理密碼：`)) return;
@@ -1646,19 +1585,17 @@
         if (countInClass > 0) warningText += `\n\n📌 提醒：目前有 ${countInClass} 位學生修習此課程。`;
 
         if (confirm(warningText)) {
-            try {
-                window.state.courses[dept] = window.state.courses[dept].filter(c => (typeof c === 'object' ? c.name : c) !== className);
-                await setDoc(doc(db, "zhideClassLogSettings", "courses"), { data: window.state.courses });
-                document.getElementById('editClassModal').style.display = 'none';
-                alert(`✅ 班級【${className}】已刪除！`);
-                if (window.state.currentFilterClass === className) window.state.currentFilterClass = null;
-                initCloudData();
-            } catch (e) { console.error(e); alert('刪除失敗！'); }
+            window.state.courses[dept] = window.state.courses[dept].filter(c => (typeof c === 'object' ? c.name : c) !== className);
+            saveCoursesToLocalStorage();
+            document.getElementById('editClassModal').style.display = 'none';
+            alert(`✅ 班級【${className}】已刪除！`);
+            if (window.state.currentFilterClass === className) window.state.currentFilterClass = null;
+            initLocalStorageData();
         }
     };
 
-    window.openViewStudentModal = function(firestoreId) {
-        const stu = window.state.students.find(s => s.firestoreId === firestoreId);
+    window.openViewStudentModal = function(id) {
+        const stu = window.state.students.find(s => (s.id || s.firestoreId) === id);
         if (!stu) return;
 
         document.getElementById('viewModalTitle').innerText = `👁️ 【${stu.name}】詳細學籍檔案`;
@@ -1805,6 +1742,7 @@
                 cardContainer.style.display = 'block';
                 let cardsHtml = '';
                 filtered.forEach((stu, idx) => {
+                    const stuId = stu.id || stu.firestoreId;
                     const stuCourses = getStudentCoursesArray(stu);
                     const coursesTags = stuCourses.map(c => {
                         const customDays = (stu.courseScheduleDays && stu.courseScheduleDays[c]) ? `<span class="schedule-badge">(${stu.courseScheduleDays[c]})</span>` : '';
@@ -1837,9 +1775,9 @@
                                 ${stu.pickupNotes ? `<div style="margin-top:6px; background:#fdf4ff; border:1px solid #f5d0fe; padding:6px 8px; border-radius:6px; color:#86198f; font-size:12.5px;">🚗 <b>接送/社團備註：</b>${stu.pickupNotes}</div>` : ''}
                             </div>
                             <div class="student-master-card-footer">
-                                <button class="btn btn-warning action-btn" onclick="openQuickAssignModal('${stu.firestoreId}')">📋 加選</button>
-                                <button class="btn btn-outline action-btn" onclick="openViewStudentModal('${stu.firestoreId}')">👁️ 瀏覽</button>
-                                <button class="btn btn-primary action-btn" onclick="openEditStudentModal('${stu.firestoreId}')">✏️ 編輯</button>
+                                <button class="btn btn-warning action-btn" onclick="openQuickAssignModal('${stuId}')">📋 加選</button>
+                                <button class="btn btn-outline action-btn" onclick="openViewStudentModal('${stuId}')">👁️ 瀏覽</button>
+                                <button class="btn btn-primary action-btn" onclick="openEditStudentModal('${stuId}')">✏️ 編輯</button>
                             </div>
                         </div>
                     `;
@@ -1852,6 +1790,7 @@
 
             let html = '';
             filtered.forEach((stu, idx) => {
+                const stuId = stu.id || stu.firestoreId;
                 const stuCourses = getStudentCoursesArray(stu);
                 const coursesTags = stuCourses.map(c => {
                     const customDays = (stu.courseScheduleDays && stu.courseScheduleDays[c]) ? `<span class="schedule-badge">(${stu.courseScheduleDays[c]})</span>` : '';
@@ -1878,9 +1817,9 @@
                         <td style="text-align:left; font-size:12px; color:#86198f; background:#fdf4ff;">${stu.pickupNotes || '<span style="color:#ccc;">-</span>'}</td>
                         <td>
                             <div class="action-btn-group">
-                                <button class="btn btn-warning action-btn" style="color:#000;" onclick="openQuickAssignModal('${stu.firestoreId}')">加選</button>
-                                <button class="btn btn-outline action-btn" onclick="openViewStudentModal('${stu.firestoreId}')">瀏覽</button>
-                                <button class="btn btn-primary action-btn" onclick="openEditStudentModal('${stu.firestoreId}')">編輯</button>
+                                <button class="btn btn-warning action-btn" style="color:#000;" onclick="openQuickAssignModal('${stuId}')">加選</button>
+                                <button class="btn btn-outline action-btn" onclick="openViewStudentModal('${stuId}')">瀏覽</button>
+                                <button class="btn btn-primary action-btn" onclick="openEditStudentModal('${stuId}')">編輯</button>
                             </div>
                         </td>
                     </tr>
@@ -2222,11 +2161,11 @@
         document.getElementById('studentModal').style.display = "flex";
     };
 
-    window.openEditStudentModal = function(firestoreId) {
-        const stu = window.state.students.find(s => s.firestoreId === firestoreId);
+    window.openEditStudentModal = function(id) {
+        const stu = window.state.students.find(s => (s.id || s.firestoreId) === id);
         if (!stu) return;
         document.getElementById('studentModalTitle').innerText = `✏️ 編輯【${stu.name}】學籍`;
-        document.getElementById('editStudentFirestoreId').value = firestoreId;
+        document.getElementById('editStudentFirestoreId').value = id;
         document.getElementById('btnDeleteStudent').style.display = "inline-block";
         document.getElementById('m_stu_name').value = stu.name || '';
         document.getElementById('m_stu_gender').value = stu.gender || '男';
@@ -2287,8 +2226,8 @@
 
     window.closeStudentModal = function() { document.getElementById('studentModal').style.display = "none"; };
 
-    window.saveStudentMasterData = async function() {
-        const firestoreId = document.getElementById('editStudentFirestoreId').value;
+    window.saveStudentMasterData = function() {
+        const id = document.getElementById('editStudentFirestoreId').value;
         const name = document.getElementById('m_stu_name').value.trim();
         const { courses: selectedCourses, scheduleDays: courseScheduleDays } = getSelectedCoursesWithDays('studentCoursesWrapper');
 
@@ -2303,6 +2242,7 @@
         }
 
         const studentData = {
+            id: id || 'stu_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             name: name,
             gender: document.getElementById('m_stu_gender').value,
             idCard: document.getElementById('m_stu_idcard').value.trim(),
@@ -2323,63 +2263,64 @@
             fatherJob: document.getElementById('m_stu_father_job').value.trim(),
             motherJob: document.getElementById('m_stu_mother_job').value.trim(),
             health: document.getElementById('m_stu_health').value.trim(),
-            notes: document.getElementById('m_stu_notes').value.trim()
+            notes: document.getElementById('m_stu_notes').value.trim(),
+            attendanceLogs: []
         };
 
-        try {
-            if (firestoreId) {
-                const target = window.state.students.find(s => s.firestoreId === firestoreId);
-                await setDoc(doc(db, "zhideClassLogStudents", firestoreId), { ...studentData, attendanceLogs: (target && target.attendanceLogs) || [] });
-            } else {
-                const docRef = doc(collection(db, "zhideClassLogStudents"));
-                await setDoc(docRef, { ...studentData, attendanceLogs: [] });
+        if (id) {
+            const idx = window.state.students.findIndex(s => (s.id || s.firestoreId) === id);
+            if (idx !== -1) {
+                studentData.attendanceLogs = window.state.students[idx].attendanceLogs || [];
+                window.state.students[idx] = studentData;
             }
-            closeStudentModal();
-            alert(`✅ 學生【${name}】資料已成功儲存！`);
-            initCloudData();
-        } catch (e) { console.error(e); alert('儲存失敗！'); }
+        } else {
+            window.state.students.push(studentData);
+        }
+
+        saveStudentsToLocalStorage();
+        closeStudentModal();
+        alert(`✅ 學生【${name}】資料已成功儲存！`);
+        initLocalStorageData();
     };
 
-    window.openQuickAssignModal = function(firestoreId) {
-        const stu = window.state.students.find(s => s.firestoreId === firestoreId);
+    window.openQuickAssignModal = function(id) {
+        const stu = window.state.students.find(s => (s.id || s.firestoreId) === id);
         if (!stu) return;
         document.getElementById('quickAssignTitle').innerText = `📋 為【${stu.name}】加選班級課程`;
-        document.getElementById('quickAssignFirestoreId').value = firestoreId;
+        document.getElementById('quickAssignFirestoreId').value = id;
         populateDynamicCourses('quickAssignWrapper', getStudentCoursesArray(stu), stu.courseScheduleDays || {});
         document.getElementById('quickAssignModal').style.display = 'flex';
     };
 
-    window.saveQuickAssign = async function() {
-        const firestoreId = document.getElementById('quickAssignFirestoreId').value;
-        const stu = window.state.students.find(s => s.firestoreId === firestoreId);
+    window.saveQuickAssign = function() {
+        const id = document.getElementById('quickAssignFirestoreId').value;
+        const stu = window.state.students.find(s => (s.id || s.firestoreId) === id);
         if (!stu) return;
         const { courses: selectedCourses, scheduleDays: courseScheduleDays } = getSelectedCoursesWithDays('quickAssignWrapper');
         if (selectedCourses.length === 0) return alert('⚠️ 請至少選擇一個修習班級！');
 
-        try {
-            stu.courses = selectedCourses;
-            stu.courseScheduleDays = courseScheduleDays;
-            stu.course = selectedCourses.join('、');
-            await setDoc(doc(db, "zhideClassLogStudents", firestoreId), { ...stu, courses: selectedCourses, courseScheduleDays: courseScheduleDays, course: stu.course });
-            document.getElementById('quickAssignModal').style.display = 'none';
-            alert(`✅ 已成功更新【${stu.name}】修課名冊！`);
-            initCloudData();
-        } catch (e) { console.error(e); alert('加選失敗'); }
+        stu.courses = selectedCourses;
+        stu.courseScheduleDays = courseScheduleDays;
+        stu.course = selectedCourses.join('、');
+        
+        saveStudentsToLocalStorage();
+        document.getElementById('quickAssignModal').style.display = 'none';
+        alert(`✅ 已成功更新【${stu.name}】修課名冊！`);
+        initLocalStorageData();
     };
 
-    window.deleteMasterStudent = async function() {
-        const firestoreId = document.getElementById('editStudentFirestoreId').value;
+    window.deleteMasterStudent = function() {
+        const id = document.getElementById('editStudentFirestoreId').value;
         const name = document.getElementById('m_stu_name').value;
-        if (!firestoreId) return;
+        if (!id) return;
         if (!checkPassword(`🔒 刪除【${name}】學籍資料，請輸入管理密碼：`)) return;
 
         if (confirm(`⚠️ 確定要永久刪除【${name}】的學生檔案嗎？`)) {
-            try {
-                await deleteDoc(doc(db, "zhideClassLogStudents", firestoreId));
-                closeStudentModal();
-                alert(`✅ 學生【${name}】資料已刪除！`);
-                initCloudData();
-            } catch (e) { console.error(e); alert('刪除失敗！'); }
+            window.state.students = window.state.students.filter(s => (s.id || s.firestoreId) !== id);
+            saveStudentsToLocalStorage();
+            closeStudentModal();
+            alert(`✅ 學生【${name}】資料已刪除！`);
+            initLocalStorageData();
         }
     };
 
@@ -2391,7 +2332,7 @@
         document.getElementById('addClassModal').style.display = 'flex';
     };
 
-    window.saveNewClass = async function() {
+    window.saveNewClass = function() {
         const dept = document.getElementById('m_new_class_dept').value;
         const name = document.getElementById('m_new_class_name').value.trim();
         const day = getSelectedDaysFromWrapper('m_new_class_days_wrapper');
@@ -2402,12 +2343,10 @@
         if (!window.state.courses[dept]) window.state.courses[dept] = [];
         window.state.courses[dept].push({ name, day, time, teacher, startDate: getTaiwanDateString().slice(0, 8) + '01', endDate: '' });
 
-        try {
-            await setDoc(doc(db, "zhideClassLogSettings", "courses"), { data: window.state.courses });
-            document.getElementById('addClassModal').style.display = 'none';
-            alert(`✅ 已成功新增【${name}】班級！`);
-            initCloudData();
-        } catch (e) { alert('新增失敗'); }
+        saveCoursesToLocalStorage();
+        document.getElementById('addClassModal').style.display = 'none';
+        alert(`✅ 已成功新增【${name}】班級！`);
+        initLocalStorageData();
     };
 
     function getParentPhone(stu) {
@@ -2634,7 +2573,7 @@
         const taiwanTime = new Date(utc + (3600000 * 8));
         window.state.attendanceData[key].time = taiwanTime.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
         
-        saveAttendanceToCloud();
+        saveAttendanceToLocalStorage();
         renderStudentList();
         updateHomeAlertBanner();
         if (document.getElementById('quickRollModal').style.display === 'flex') {
@@ -2645,7 +2584,7 @@
     window.saveReason = function(key, val) {
         if (!window.state.attendanceData[key]) window.state.attendanceData[key] = { status: '請假' };
         window.state.attendanceData[key].reason = val.trim();
-        saveAttendanceToCloud();
+        saveAttendanceToLocalStorage();
         renderStudentList();
         if (document.getElementById('quickRollModal').style.display === 'flex') {
             renderQuickRollModal(window.state.quickRollContext.courseName, window.state.quickRollContext.dateStr);
@@ -2668,7 +2607,7 @@
             const key = `${dateStr}_${c.name}_${stu.name}`;
             window.state.attendanceData[key] = { status: '出席', time: '全員到齊', reason: (window.state.attendanceData[key] ? window.state.attendanceData[key].reason : '') };
         });
-        saveAttendanceToCloud();
+        saveAttendanceToLocalStorage();
         renderStudentList();
         updateHomeAlertBanner();
     };
@@ -2679,7 +2618,7 @@
         if (input !== CONFIRM_ROLLCALL_CODE) return alert("❌ 密碼錯誤！");
 
         const courseName = window.state.currentCourse.name;
-        saveAttendanceToCloud();
+        saveAttendanceToLocalStorage();
 
         alert(`✅ 點名確認成功！即將跳轉至【${courseName}】點名表生成總表。`);
         switchTab('sheet');
@@ -2708,7 +2647,7 @@
             delete window.state.attendanceData[key];
         });
 
-        saveAttendanceToCloud();
+        saveAttendanceToLocalStorage();
         renderStudentList();
         updateHomeAlertBanner();
         alert(`✅ 已成功重置【${c.name}】於 ${dateStr} 的點名紀錄！`);
@@ -2730,7 +2669,7 @@
             const key = `${dateStr}_${courseName}_${stu.name}`;
             window.state.attendanceData[key] = { status: '出席', time: '全員到齊', reason: (window.state.attendanceData[key] ? window.state.attendanceData[key].reason : '') };
         });
-        saveAttendanceToCloud();
+        saveAttendanceToLocalStorage();
         renderQuickRollModal(courseName, dateStr);
         renderAbsentAlertTab();
         updateHomeAlertBanner();
@@ -2981,7 +2920,7 @@
             window.state.attendanceData[key].time = taiwanTime.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
         }
 
-        saveAttendanceToCloud();
+        saveAttendanceToLocalStorage();
 
         document.getElementById('absentReasonModal').style.display = 'none';
         alert(`✅ 已成功儲存【${studentName}】的請假原因與連絡結果！`);
@@ -3195,30 +3134,25 @@
         if (target && typeof target === 'object') target[field] = value;
     };
 
-    window.saveAllCourseConfigs = async function() {
+    window.saveAllCourseConfigs = function() {
         if (!checkPassword("🔒 修改課程起訖日，請輸入管理密碼：")) return;
 
-        try {
-            await setDoc(doc(db, "zhideClassLogSettings", "courses"), { data: window.state.courses });
-            alert("✅ 所有課程起訖日設定已儲存並同步！");
-            renderCourseCards();
-            renderCourseConfigList();
-        } catch (e) {
-            console.error(e);
-            alert("❌ 儲存失敗！");
-        }
+        saveCoursesToLocalStorage();
+        alert("✅ 所有課程起訖日設定已儲存！");
+        renderCourseCards();
+        renderCourseConfigList();
     };
 
-    window.verifyAndAddHoliday = async function() {
+    window.verifyAndAddHoliday = function() {
         const date = document.getElementById('newHolidayDate').value;
         const name = document.getElementById('newHolidayName').value.trim();
         if (!date || !name) return alert('請輸入完整日期與事由！');
 
         window.state.holidays.push({ date, name });
-        await saveHolidaysToCloud();
+        saveHolidaysToLocalStorage();
         document.getElementById('newHolidayName').value = '';
         renderHolidayList();
-        alert(`✅ 已成功設定放假：${date} 【${name}】並同步至雲端！`);
+        alert(`✅ 已成功設定放假：${date} 【${name}】！`);
     };
 
     function renderHolidayList() {
@@ -3240,10 +3174,10 @@
         div.innerHTML = html;
     }
 
-    window.deleteHoliday = async function(idx) {
+    window.deleteHoliday = function(idx) {
         if (!confirm('確定要刪除此放假設定嗎？')) return;
         window.state.holidays.splice(idx, 1);
-        await saveHolidaysToCloud();
+        saveHolidaysToLocalStorage();
         renderHolidayList();
     };
 </script>
