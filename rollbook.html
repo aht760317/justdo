@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>智慧教務管理、多科修課點名與學生資料總庫</title>
-    <!-- 引入 Google 官方 API 與登入套件 (用於雲端試算表分頁) -->
+    <!-- 引入 Google 官方 API 與登入套件 -->
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
     <style>
@@ -351,8 +351,7 @@
         </select>
     </div>
     <div style="display:flex; gap:6px;">
-        <button class="btn btn-warning" style="padding:5px 12px; font-size:12.5px; color:#000;" onclick="openAddBranchModal()">➕ 新增分校</button>
-        <button class="btn btn-danger" style="padding:5px 12px; font-size:12.5px;" onclick="deleteCurrentBranch()">🗑️ 刪除目前分校</button>
+        <button class="btn btn-warning" style="padding:5px 12px; font-size:12.5px; color:#000;" onclick="switchTab('branch-settings'); openAddBranchModal();">➕ 新增分校</button>
     </div>
 </div>
 
@@ -669,11 +668,22 @@
     <!-- 5. 分校與部門學制自訂設定中心 -->
     <div id="tab-branch-settings" style="display:none;">
         <div class="card" style="border-top: 4px solid var(--purple);">
-            <h3 style="color:var(--primary); font-size:17px; margin-bottom:6px;">🏢 【<span id="settingsBranchName"></span>】分校學部/部門自訂設定</h3>
-            <p style="color:#666; font-size:13px; margin-bottom:14px;">您可以在此自由為目前分校設定專屬的學部或部門名稱（例如：英文部、數學部、國中全科班等），設定後會自動更新至各個選單與管理介面。</p>
+            <h3 style="color:var(--primary); font-size:17px; margin-bottom:6px;">🏢 分校與部門學制總管理中心</h3>
+            <p style="color:#666; font-size:13px; margin-bottom:14px;">您可以在此新增分校、刪除不需要的分校，或是為目前選定的分校自訂專屬的學部與部門（例如：英文部、數學部等）。</p>
 
-            <div style="background:#faf5ff; border:1.5px solid #d8b4fe; padding:14px; border-radius:10px; margin-bottom:16px;">
-                <h4 style="color:var(--primary); font-size:15px; margin-bottom:8px;">➕ 新增此分校專屬部門</h4>
+            <!-- 分校管理區 -->
+            <div style="background:#fdf4ff; border:1.5px solid #d946ef; padding:16px; border-radius:10px; margin-bottom:20px;">
+                <h4 style="color:#a21caf; font-size:15px; margin-bottom:10px;">🏫 分校列表與新增/刪除管理</h4>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+                    <input type="text" id="settingsNewBranchInput" placeholder="輸入新分校名稱 (例: 斗南分校)" style="flex:1; min-width:200px; margin:0; padding:8px;">
+                    <button class="btn btn-primary" onclick="addNewBranchFromSettings()" style="padding:8px 16px;">➕ 新增分校</button>
+                </div>
+                <div id="branchesManageList" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+            </div>
+
+            <!-- 部門設定區 -->
+            <div style="background:#faf5ff; border:1.5px solid #d8b4fe; padding:16px; border-radius:10px; margin-bottom:16px;">
+                <h4 style="color:var(--primary); font-size:15px; margin-bottom:8px;">➕ 新增【<span id="settingsBranchName"></span>】專屬部門/學部</h4>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <input type="text" id="newDeptKeyInput" placeholder="代號英文 (例: english)" style="flex:1; min-width:140px; margin:0; padding:8px;">
                     <input type="text" id="newDeptLabelInput" placeholder="顯示名稱 (例: 🔤 英文部)" style="flex:2; min-width:180px; margin:0; padding:8px;">
@@ -687,19 +697,6 @@
             <div style="margin-top:20px; text-align:right; border-top:1px solid #e9d5ff; padding-top:12px;">
                 <button class="btn btn-success" onclick="saveBranchDepartmentsConfig()" style="padding:9px 20px; font-size:14px;">💾 儲存部門設定 (需密碼)</button>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- 新增分校彈窗 -->
-<div class="modal-overlay" id="addBranchModal">
-    <div class="modal-box" style="max-width:400px;">
-        <h3 style="color:var(--primary); margin-bottom:12px; font-size:17px;">➕ 新增分校</h3>
-        <label style="font-size:13px;"><b>分校完整名稱：</b></label>
-        <input type="text" id="newBranchNameInput" placeholder="例如：林內分校">
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
-            <button class="btn btn-success" onclick="saveNewBranch()" style="padding:7px 14px; font-size:13px;">確認新增</button>
-            <button class="btn btn-outline" onclick="document.getElementById('addBranchModal').style.display='none'" style="padding:7px 14px; font-size:13px;">取消</button>
         </div>
     </div>
 </div>
@@ -815,33 +812,19 @@
                     <option value="">-- 請選擇孩子的學校 --</option>
                     <option value="幼稚園">幼稚園（自行輸入）</option>
                     <optgroup label="── 國小部 ──">
+                        <option value="興嘉國小">興嘉國小</option>
+                        <option value="僑平國小">僑平國小</option>
+                        <option value="民雄國小">民雄國小</option>
                         <option value="斗六國小">斗六國小</option>
                         <option value="公誠國小">公誠國小</option>
                         <option value="雲林國小">雲林國小</option>
                         <option value="鎮南國小">鎮南國小</option>
-                        <option value="鎮西國小">鎮西國小</option>
-                        <option value="鎮東國小">鎮東國小</option>
-                        <option value="林頭國小">林頭國小</option>
-                        <option value="梅林國小">梅林國小</option>
-                        <option value="溪洲國小">溪洲國小</option>
-                        <option value="溝壩國小">溝壩國小</option>
-                        <option value="石榴國小">石榴國小</option>
-                        <option value="保長國小">保長國小</option>
-                        <option value="久安國小">久安國小</option>
-                        <option value="三光國小">三光國小</option>
-                        <option value="維多利亞雙語中小學（小學部）">維多利亞雙語中小學（小學部）</option>
                     </optgroup>
                     <optgroup label="── 國中部 ──">
+                        <option value="民雄國中">民雄國中</option>
+                        <option value="嘉義國中">嘉義國中</option>
                         <option value="斗六國中">斗六國中</option>
-                        <option value="雲林國中">雲林國中</option>
-                        <option value="石榴國中">石榴國中</option>
                         <option value="正心中學（國中部）">正心中學（國中部）</option>
-                        <option value="維多利亞雙語中小學（國中部）">維多利亞雙語中小學（國中部）</option>
-                        <option value="斗南國中">斗南國中</option>
-                        <option value="林內國中">林內國中</option>
-                        <option value="西螺國中">西螺國中</option>
-                        <option value="莿桐國中">莿桐國中</option>
-                        <option value="古坑國中">古坑國中</option>
                     </optgroup>
                     <option value="其他">其他（自行輸入）</option>
                 </select>
@@ -895,7 +878,7 @@
 
         <div>
             <label style="font-size:13px;"><b>通訊地址：</b></label>
-            <input type="text" id="m_stu_address" placeholder="例如：雲林縣斗六市...">
+            <input type="text" id="m_stu_address" placeholder="例如：嘉義市西區...">
         </div>
 
         <!-- 學生接送備註(其他課程/學校社團) 區塊 -->
@@ -903,7 +886,7 @@
             <label style="color:#86198f; font-weight:bold; font-size:13px; display:flex; align-items:center; gap:5px; margin-bottom:4px;">
                 🚗 學生接送備註(其他課程/學校社團)：
             </label>
-            <textarea id="m_stu_pickup_notes" rows="2" style="resize:vertical; line-height:1.4; border-color:#e879f9; background:#fff; margin:0;" placeholder="例如：週二參加學校管樂社17:00接、週四安親下課由媽媽自接、公誠側門接送..."></textarea>
+            <textarea id="m_stu_pickup_notes" rows="2" style="resize:vertical; line-height:1.4; border-color:#e879f9; background:#fff; margin:0;" placeholder="例如：週二參加學校管樂社17:00接、週四安親下課由媽媽自接..."></textarea>
         </div>
 
         <div>
@@ -1033,7 +1016,7 @@
 
     let searchDebounceTimer = null;
 
-    const DEFAULT_BRANCH_LIST = ["興嘉分校", "僑平分校", "民雄總校", "世界美語", "斗六總校", "虎尾分校", "西螺分校", "斗南分校"];
+    const DEFAULT_BRANCH_LIST = ["興嘉分校", "僑平分校", "民雄總校", "世界美語"];
     let allBranches = JSON.parse(localStorage.getItem('zhide_all_branches')) || DEFAULT_BRANCH_LIST;
     let currentBranch = localStorage.getItem('zhide_current_branch') || allBranches[0];
 
@@ -1085,6 +1068,7 @@
         document.getElementById('headerBranchTitle').innerText = `${currentBranch} 智慧教務與點名系統`;
         document.getElementById('settingsBranchName').innerText = currentBranch;
         renderBranchDropdown();
+        renderBranchesManageList();
         renderDeptSelectOptions();
         renderBranchDepartmentsConfigList();
     }
@@ -1102,6 +1086,23 @@
         });
     }
 
+    function renderBranchesManageList() {
+        const listDiv = document.getElementById('branchesManageList');
+        if (!listDiv) return;
+        let html = '';
+        allBranches.forEach(bName => {
+            const isCurrent = bName === currentBranch;
+            html += `
+                <div style="display:flex; align-items:center; gap:6px; background:${isCurrent ? '#f3e8ff' : '#fff'}; border:1.5px solid ${isCurrent ? 'var(--accent)' : '#d8b4fe'}; padding:6px 12px; border-radius:8px;">
+                    <span style="font-weight:bold; color:${isCurrent ? 'var(--primary)' : '#3b0764'};">🏢 ${bName} ${isCurrent ? '(目前)' : ''}</span>
+                    ${!isCurrent ? `<button class="btn btn-outline" style="padding:2px 6px; font-size:11px;" onclick="switchBranch('${bName}')">切換</button>` : ''}
+                    ${allBranches.length > 1 ? `<button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteSpecificBranch('${bName}')">刪除</button>` : ''}
+                </div>
+            `;
+        });
+        listDiv.innerHTML = html;
+    }
+
     window.switchBranch = function(branchName) {
         currentBranch = branchName;
         localStorage.setItem('zhide_current_branch', currentBranch);
@@ -1110,36 +1111,31 @@
         switchTab('rollcall');
     };
 
-    window.openAddBranchModal = function() {
-        document.getElementById('newBranchNameInput').value = '';
-        document.getElementById('addBranchModal').style.display = 'flex';
-    };
-
-    window.saveNewBranch = function() {
-        const name = document.getElementById('newBranchNameInput').value.trim();
-        if (!name) return alert('請輸入分校名稱！');
-        if (allBranches.includes(name)) return alert('此分校名稱已存在於系統中！');
+    window.addNewBranchFromSettings = function() {
+        const input = document.getElementById('settingsNewBranchInput');
+        const name = input.value.trim();
+        if (!name) return alert('請輸入新分校名稱！');
+        if (allBranches.includes(name)) return alert('此分校名稱已存在！');
 
         allBranches.push(name);
         localStorage.setItem('zhide_all_branches', JSON.stringify(allBranches));
-
-        document.getElementById('addBranchModal').style.display = 'none';
+        input.value = '';
         switchBranch(name);
         alert(`✅ 已成功新增並切換至【${name}】！`);
     };
 
-    window.deleteCurrentBranch = function() {
-        if (allBranches.length <= 1) return alert('⚠️ 系統中至少需保留一間分校，無法刪除！');
-        if (!checkPassword(`🔒 刪除分校【${currentBranch}】及其所有資料，請輸入管理密碼：`)) return;
+    window.deleteSpecificBranch = function(branchName) {
+        if (allBranches.length <= 1) return alert('⚠️ 至少需保留一間分校！');
+        if (!checkPassword(`🔒 刪除分校【${branchName}】及其所有資料，請輸入管理密碼：`)) return;
 
-        if (confirm(`⚠️ 確定要刪除分校【${currentBranch}】嗎？此動作將清除該校所有班級與學生資料，無法復原！`)) {
-            localStorage.removeItem(getBranchKey('departments'));
-            localStorage.removeItem(getBranchKey('courses'));
-            localStorage.removeItem(getBranchKey('students'));
-            localStorage.removeItem(getBranchKey('holidays'));
-            localStorage.removeItem(getBranchKey('attendance_records'));
+        if (confirm(`⚠️ 確定要永久刪除分校【${branchName}】嗎？`)) {
+            localStorage.removeItem(`zhide_${branchName}_departments`);
+            localStorage.removeItem(`zhide_${branchName}_courses`);
+            localStorage.removeItem(`zhide_${branchName}_students`);
+            localStorage.removeItem(`zhide_${branchName}_holidays`);
+            localStorage.removeItem(`zhide_${branchName}_attendance_records`);
 
-            allBranches = allBranches.filter(b => b !== currentBranch);
+            allBranches = allBranches.filter(b => b !== branchName);
             localStorage.setItem('zhide_all_branches', JSON.stringify(allBranches));
 
             currentBranch = allBranches[0];
@@ -1148,7 +1144,7 @@
             loadBranchData();
             initLocalStorageData();
             switchTab('rollcall');
-            alert('✅ 分校已刪除！');
+            alert(`✅ 分校【${branchName}】已刪除！`);
         }
     };
 
@@ -1159,7 +1155,7 @@
         let html = `<table><thead><tr><th style="width:120px;">代號 (Key)</th><th>顯示名稱 (Label)</th><th style="width:80px;">操作</th></tr></thead><tbody>`;
         window.state.departments.forEach((dept, idx) => {
             html += `<tr>
-                <td><input type="text" value="${dept.key}" id="d_key_${idx}" style="margin:0; padding:5px; font-size:13px;" readonly style="background:#f3e8ff;"></td>
+                <td><input type="text" value="${dept.key}" id="d_key_${idx}" style="margin:0; padding:5px; font-size:13px; background:#f3e8ff;" readonly></td>
                 <td><input type="text" value="${dept.label}" id="d_label_${idx}" style="margin:0; padding:5px; font-size:13px;"></td>
                 <td>${idx >= 3 ? `<button class="btn btn-danger" style="padding:4px 8px; font-size:11.5px;" onclick="removeDeptRow(${idx})">刪除</button>` : '<span style="color:#888; font-size:11.5px;">預設</span>'}</td>
             </tr>`;
@@ -1394,6 +1390,7 @@
             renderHolidayList();
         } else if (tab === 'branch-settings') {
             document.querySelectorAll('.tab-btn')[5].classList.add('active');
+            renderBranchesManageList();
             renderBranchDepartmentsConfigList();
         } else {
             document.querySelectorAll('.tab-btn')[4].classList.add('active');
